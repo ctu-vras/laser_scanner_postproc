@@ -1,7 +1,13 @@
 from __future__ import absolute_import, division, print_function
-from .transform import transform_cloud
+from .clouds import transform_cloud
 import numpy as np
 import os
+
+data_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'data'))
+
+
+def data_path(path):
+    return os.path.join(data_dir, path)
 
 
 def extension(path):
@@ -15,7 +21,7 @@ def read_ptx_header(f):
     # number of rows
     # number of columns
     shape = int(f.readline()), int(f.readline())
-    print('Shape:', shape)
+    # print('Shape:', shape)
 
     # st1 st2 st3 ; scanner registered position
     # sx1 sx2 sx3 ; scanner registered axis 'X'
@@ -26,8 +32,8 @@ def read_ptx_header(f):
     scanner_pose[:3, 0] = [float(x) for x in f.readline().strip().split()]
     scanner_pose[:3, 1] = [float(x) for x in f.readline().strip().split()]
     scanner_pose[:3, 2] = [float(x) for x in f.readline().strip().split()]
-    print('Scanner pose:')
-    print(scanner_pose)
+    # print('Scanner pose:')
+    # print(scanner_pose)
 
     # r11 r12 r13 0 ; transformation matrix
     # r21 r22 r23 0 ; this is a simple rotation and translation 4x4 matrix
@@ -38,8 +44,8 @@ def read_ptx_header(f):
     cloud_pose[:, 1] = [float(x) for x in f.readline().strip().split()]
     cloud_pose[:, 2] = [float(x) for x in f.readline().strip().split()]
     cloud_pose[:, 3] = [float(x) for x in f.readline().strip().split()]
-    print('Cloud pose:')
-    print(scanner_pose)
+    # print('Cloud pose:')
+    # print(scanner_pose)
 
     return shape, scanner_pose, cloud_pose
 
@@ -67,7 +73,7 @@ def read_ptx_data(f, shape):
                      ('g', 'u1'),
                      ('b', 'u1')]
             dtype = dtype[:len(vals)]
-            print('Type:', dtype)
+            # print('Type:', dtype)
             cloud = np.zeros(shape, dtype=dtype)
         vals = [float(x) for x in vals[:4]] + [int(x) for x in vals[4:]]
         vals = tuple(vals)
@@ -83,22 +89,16 @@ def safe_read_ptx_data(f, shape):
         return None
 
 
-def read_ptx(path, return_scanner_pose=False, return_cloud_pose=False, transform=False, merge=True):
-    """Read PTX file to NumPy structured array.
+def read_ptx(path, transform=False):
+    """Read PTX file to NumPy structured arrays.
 
     :param path: PTX path to read.
-    :param return_scanner_pose: Return scanner pose(s).
-    :param return_cloud_pose: Return cloud transform(s).
-    :param transform: Transform cloud(s) using the pose(s).
-    :param merge: Merge all clouds into one.
-    :return: Cloud(s) as NumPy structured array(s).
+    :param transform: Whether to transform read clouds.
+    :return: List of tuples (cloud, scanner_pose, cloud_pose).
     """
-    # https://sites.google.com/site/matterformscanner/learning-references/ptx-format
-    # https://wiki.photoneo.com/index.php/PTX_file_format
-    # https://knowledge.autodesk.com/support/autocad/learn-explore/caas/CloudHelp/cloudhelp/2021/ENU/AutoCAD-Core/files/GUID-E658D5E7-EE5C-4A06-BF34-F71CDB363A71-htm.html
     clouds = []
     scanner_poses = []
-    cloud_transforms = []
+    cloud_poses = []
     with open(path, 'r') as f:
         while True:
             header = safe_read_ptx_header(f)
@@ -114,26 +114,9 @@ def read_ptx(path, return_scanner_pose=False, return_cloud_pose=False, transform
 
             clouds.append(cloud)
             scanner_poses.append(scanner_pose)
-            cloud_transforms.append(cloud_pose)
+            cloud_poses.append(cloud_pose)
 
-    if not clouds:
-        return None
-
-    if merge:
-        assert not return_scanner_pose
-        assert not return_cloud_pose
-        assert transform
-        # print('Merging %i clouds.' % len(clouds))
-        clouds = np.concatenate([c.ravel() for c in clouds])
-        return clouds
-
-    ret = (clouds,)
-    if return_scanner_pose:
-        ret += (scanner_poses,)
-    if return_cloud_pose:
-        ret += (cloud_transforms,)
-
-    ret = list(zip(*ret))
+    ret = list(zip(clouds, scanner_poses, cloud_poses))
 
     return ret
 
@@ -170,14 +153,14 @@ def write_npz(arr, path):
     np.savez_compressed(path, *args, **kwargs)
 
 
-def read(path):
+def read(path, *args, **kwargs):
     ext = extension(path)
     if ext == 'npy':
         return read_npy(path)
     elif ext == 'npz':
         return read_npz(path)
     elif ext == 'ptx':
-        return read_ptx(path)
+        return read_ptx(path, *args, **kwargs)
     raise ValueError('Reading %s failed.' % path)
 
 
