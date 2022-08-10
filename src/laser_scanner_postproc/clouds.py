@@ -40,7 +40,7 @@ def filter_box(cloud, min, max, log=False):
 
     if log:
         print('%.3f = %i / %i points kept (min %s, max %s).'
-              % (mask.sum() / len(cloud), mask.sum(), len(cloud), min, max))
+              % (mask.sum() / len(cloud), mask.sum(), len(cloud), min[0], max[0]))
 
     filtered = cloud[mask]
     return filtered
