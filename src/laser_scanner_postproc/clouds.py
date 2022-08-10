@@ -54,7 +54,7 @@ def filter_range(cloud, min, max, log=False):
     assert min <= max, (min, max)
     min = float(min)
     max = float(max)
-    if range[0] <= 0.0 or range[1] == np.inf:
+    if min <= 0.0 or max == np.inf:
         return cloud
 
     cloud = cloud.ravel()
