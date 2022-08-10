@@ -178,7 +178,7 @@ def read_npz(path):
 
 
 def write_npz(arr, path):
-    assert file_format(path) == file_format.npz
+    assert file_format(path) == FileFormat.npz
     args = []
     kwargs = {}
     if isinstance(arr, np.ndarray):
